@@ -11,19 +11,19 @@ import ARKit
 extension ViewController: ARCoachingOverlayViewDelegate {
     
     func coachingOverlayViewWillActivate(_ coachingOverlayView: ARCoachingOverlayView) {
-        hideMeshButton.isHidden = true
-        resetButton.isHidden = true
-        planeDetectionButton.isHidden = true
+//        hideMeshButton.isHidden = true
+//        resetButton.isHidden = true
+//        planeDetectionButton.isHidden = true
     }
 
     func coachingOverlayViewDidDeactivate(_ coachingOverlayView: ARCoachingOverlayView) {
-        hideMeshButton.isHidden = false
-        resetButton.isHidden = false
-        planeDetectionButton.isHidden = false
+//        hideMeshButton.isHidden = false
+//        resetButton.isHidden = false
+//        planeDetectionButton.isHidden = false
     }
 
     func coachingOverlayViewDidRequestSessionReset(_ coachingOverlayView: ARCoachingOverlayView) {
-        resetButtonPressed(self)
+       // resetButtonPressed(self)
     }
 
     func setupCoachingOverlay() {

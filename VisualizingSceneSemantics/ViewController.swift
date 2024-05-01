@@ -1,20 +1,16 @@
-/*
-See LICENSE folder for this sample’s licensing information.
-
-Abstract:
-Main view controller for the AR experience.
-*/
-
 import RealityKit
 import ARKit
+import AVFoundation
 
 class ViewController: UIViewController, ARSessionDelegate {
     
     @IBOutlet var arView: ARView!
-    @IBOutlet weak var hideMeshButton: UIButton!
-    @IBOutlet weak var resetButton: UIButton!
-    @IBOutlet weak var planeDetectionButton: UIButton!
-    
+    //@IBOutlet weak var hideMeshButton: UIButton!
+    //@IBOutlet weak var resetButton: UIButton!
+    //@IBOutlet weak var planeDetectionButton: UIButton!
+    var distanceUpdateTimer: Timer?
+    var hapticGenerator: UIImpactFeedbackGenerator?
+    private let speechSynthesizer = AVSpeechSynthesizer()
     let coachingOverlay = ARCoachingOverlayView()
     
     // Cache for 3D text geometries representing the classification values.
@@ -23,6 +19,11 @@ class ViewController: UIViewController, ARSessionDelegate {
     /// - Tag: ViewDidLoad
     override func viewDidLoad() {
         super.viewDidLoad()
+        
+        distanceUpdateTimer = Timer.scheduledTimer(timeInterval: 0.1, target: self, selector: #selector(updateDistance), userInfo: nil, repeats: true)
+        // Initialize haptic generator
+        hapticGenerator = UIImpactFeedbackGenerator(style: .heavy)
+                hapticGenerator?.prepare()
         
         arView.session.delegate = self
         
@@ -53,6 +54,23 @@ class ViewController: UIViewController, ARSessionDelegate {
         
         let tapRecognizer = UITapGestureRecognizer(target: self, action: #selector(handleTap(_:)))
         arView.addGestureRecognizer(tapRecognizer)
+        
+    }
+    
+    @objc func updateDistance() {
+        let screenCenter = CGPoint(x: arView.bounds.midX, y: arView.bounds.midY)
+        if let result = arView.raycast(from: screenCenter, allowing:.estimatedPlane, alignment:.any).first {
+            let distance = distance(result.worldTransform.position, arView.cameraTransform.translation)
+            print("Distance: \(distance)")
+            provideHapticFeedback(Float(distance))
+
+            // Call nearbyFaceWithClassification
+            nearbyFaceWithClassification(to: result.worldTransform.position) { centerOfFace, classification in
+                if let classification = classification {
+                    print("Classification: \(classification.description)")
+                }
+            }
+        }
     }
     
     override func viewDidAppear(_ animated: Bool) {
@@ -74,88 +92,44 @@ class ViewController: UIViewController, ARSessionDelegate {
     /// point immediately to give instant visual feedback of the tap.
     @objc
     func handleTap(_ sender: UITapGestureRecognizer) {
-        // 1. Perform a ray cast against the mesh.
-        // Note: Ray-cast option ".estimatedPlane" with alignment ".any" also takes the mesh into account.
-        let tapLocation = sender.location(in: arView)
-        if let result = arView.raycast(from: tapLocation, allowing: .estimatedPlane, alignment: .any).first {
-            // ...
-            // 2. Visualize the intersection point of the ray with the real-world surface.
-            let resultAnchor = AnchorEntity(world: result.worldTransform)
-            resultAnchor.addChild(sphere(radius: 0.01, color: .lightGray))
-            arView.scene.addAnchor(resultAnchor, removeAfter: 3)
-
-            // 3. Try to get a classification near the tap location.
-            //    Classifications are available per face (in the geometric sense, not human faces).
-            nearbyFaceWithClassification(to: result.worldTransform.position) { (centerOfFace, classification) in
-                // ...
-                DispatchQueue.main.async {
-                    // 4. Compute a position for the text which is near the result location, but offset 10 cm
-                    // towards the camera (along the ray) to minimize unintentional occlusions of the text by the mesh.
-                    let rayDirection = normalize(result.worldTransform.position - self.arView.cameraTransform.translation)
-                    let textPositionInWorldCoordinates = result.worldTransform.position - (rayDirection * 0.1)
-                    
-                    // 5. Create a 3D text to visualize the classification result.
-                    let textEntity = self.model(for: classification)
-
-                    // 6. Scale the text depending on the distance, such that it always appears with
-                    //    the same size on screen.
-                    let raycastDistance = distance(result.worldTransform.position, self.arView.cameraTransform.translation)
-                    textEntity.scale = .one * raycastDistance
-
-                    // 7. Place the text, facing the camera.
-                    var resultWithCameraOrientation = self.arView.cameraTransform
-                    resultWithCameraOrientation.translation = textPositionInWorldCoordinates
-                    let textAnchor = AnchorEntity(world: resultWithCameraOrientation.matrix)
-                    textAnchor.addChild(textEntity)
-                    self.arView.scene.addAnchor(textAnchor, removeAfter: 3)
-
-                    // 8. Visualize the center of the face (if any was found) for three seconds.
-                    //    It is possible that this is nil, e.g. if there was no face close enough to the tap location.
-                    if let centerOfFace = centerOfFace {
-                        let faceAnchor = AnchorEntity(world: centerOfFace)
-                        faceAnchor.addChild(self.sphere(radius: 0.01, color: classification.color))
-                        self.arView.scene.addAnchor(faceAnchor, removeAfter: 3)
-                    }
-                }
-            }
-        }
-    }
+        // ...
+   }
     
-    @IBAction func resetButtonPressed(_ sender: Any) {
-        if let configuration = arView.session.configuration {
-            arView.session.run(configuration, options: .resetSceneReconstruction)
-        }
-    }
+//    @IBAction func resetButtonPressed(_ sender: Any) {
+//        if let configuration = arView.session.configuration {
+//            arView.session.run(configuration, options: .resetSceneReconstruction)
+//        }
+//    }
     
-    @IBAction func toggleMeshButtonPressed(_ button: UIButton) {
-        let isShowingMesh = arView.debugOptions.contains(.showSceneUnderstanding)
-        if isShowingMesh {
-            arView.debugOptions.remove(.showSceneUnderstanding)
-            button.setTitle("Show Mesh", for: [])
-        } else {
-            arView.debugOptions.insert(.showSceneUnderstanding)
-            button.setTitle("Hide Mesh", for: [])
-        }
-    }
+//    @IBAction func toggleMeshButtonPressed(_ button: UIButton) {
+//        let isShowingMesh = arView.debugOptions.contains(.showSceneUnderstanding)
+//        if isShowingMesh {
+//            arView.debugOptions.remove(.showSceneUnderstanding)
+//            button.setTitle("Show Mesh", for: [])
+//        } else {
+//            arView.debugOptions.insert(.showSceneUnderstanding)
+//            button.setTitle("Hide Mesh", for: [])
+//        }
+//    }
     
     /// - Tag: TogglePlaneDetection
-    @IBAction func togglePlaneDetectionButtonPressed(_ button: UIButton) {
-        guard let configuration = arView.session.configuration as? ARWorldTrackingConfiguration else {
-            return
-        }
-        if configuration.planeDetection == [] {
-            configuration.planeDetection = [.horizontal, .vertical]
-            button.setTitle("Stop Plane Detection", for: [])
-        } else {
-            configuration.planeDetection = []
-            button.setTitle("Start Plane Detection", for: [])
-        }
-        arView.session.run(configuration)
-    }
+//    @IBAction func togglePlaneDetectionButtonPressed(_ button: UIButton) {
+//        guard let configuration = arView.session.configuration as? ARWorldTrackingConfiguration else {
+//            return
+//        }
+//        if configuration.planeDetection == [] {
+//            configuration.planeDetection = [.horizontal, .vertical]
+//            button.setTitle("Stop Plane Detection", for: [])
+//        } else {
+//            configuration.planeDetection = []
+//            button.setTitle("Start Plane Detection", for: [])
+//        }
+//        arView.session.run(configuration)
+//    }
     
-    func nearbyFaceWithClassification(to location: SIMD3<Float>, completionBlock: @escaping (SIMD3<Float>?, ARMeshClassification) -> Void) {
+    func nearbyFaceWithClassification(to location: SIMD3<Float>, completionBlock: @escaping (SIMD3<Float>?, ARMeshClassification?) -> Void) {
         guard let frame = arView.session.currentFrame else {
-            completionBlock(nil, .none)
+            completionBlock(nil, nil)
             return
         }
     
@@ -191,7 +165,7 @@ class ViewController: UIViewController, ARSessionDelegate {
             }
             
             // Let the completion block know that no result was found.
-            completionBlock(nil, .none)
+            completionBlock(nil, nil)
         }
     }
     
@@ -205,14 +179,14 @@ class ViewController: UIViewController, ARSessionDelegate {
         ]
         let errorMessage = messages.compactMap({ $0 }).joined(separator: "\n")
         DispatchQueue.main.async {
-            // Present an alert informing about the error that has occurred.
+            //Present an alert informing about the error that has occurred.
             let alertController = UIAlertController(title: "The AR session failed.", message: errorMessage, preferredStyle: .alert)
-            let restartAction = UIAlertAction(title: "Restart Session", style: .default) { _ in
-                alertController.dismiss(animated: true, completion: nil)
-                self.resetButtonPressed(self)
-            }
-            alertController.addAction(restartAction)
-            self.present(alertController, animated: true, completion: nil)
+//            let restartAction = UIAlertAction(title: "Restart Session", style: .default) { _ in
+//                alertController.dismiss(animated: true, completion: nil)
+//                self.resetButtonPressed(self)
+//            }
+//            alertController.addAction(restartAction)
+//            self.present(alertController, animated: true, completion: nil)
         }
     }
         
@@ -242,4 +216,10 @@ class ViewController: UIViewController, ARSessionDelegate {
         sphere.position.y = radius
         return sphere
     }
+    
+    func provideHapticFeedback(_ distance: Float) {
+            // Reverse the intensity: stronger haptic for shorter distances
+            let intensity = CGFloat(max(0, min(1, 1 - distance / 2))) // Example: Inverted distance mapped to intensity between 0 and 1
+            hapticGenerator?.impactOccurred(intensity: intensity)
+        }
 }
