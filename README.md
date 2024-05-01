@@ -234,4 +234,4 @@ As the text falls, it reacts when colliding with a meshed, real-world object, su
 [13]:https://developer.apple.com/documentation/realitykit/arview/environment/3521451-sceneunderstanding
 [14]:https://developer.apple.com/documentation/realitykit/arview/environment/sceneunderstanding/options/3521434-occlusion
 [15]:https://developer.apple.com/documentation/realitykit/arview/environment/sceneunderstanding/options/3521435-physics
-[16]:https://developer.apple.com/documentation/arkit/arconfiguration/scenereconstruction/3521373-meshwithclassification
+[16]:https://developer.apple.com/documentation/arkit/arconfiguration/scenereconstruction/3521373-meshwithclassification# SceneSemantics
