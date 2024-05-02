@@ -8,18 +8,17 @@ View controller extension for the on-boarding experience.
 import UIKit
 import ARKit
 
+
 extension ViewController: ARCoachingOverlayViewDelegate {
     
     func coachingOverlayViewWillActivate(_ coachingOverlayView: ARCoachingOverlayView) {
-//        hideMeshButton.isHidden = true
-//        resetButton.isHidden = true
-//        planeDetectionButton.isHidden = true
+
+        speak("Move iPhone to start")
     }
 
     func coachingOverlayViewDidDeactivate(_ coachingOverlayView: ARCoachingOverlayView) {
-//        hideMeshButton.isHidden = false
-//        resetButton.isHidden = false
-//        planeDetectionButton.isHidden = false
+
+        speechSynthesizer.stopSpeaking(at: .immediate)
     }
 
     func coachingOverlayViewDidRequestSessionReset(_ coachingOverlayView: ARCoachingOverlayView) {
@@ -41,4 +40,12 @@ extension ViewController: ARCoachingOverlayViewDelegate {
             coachingOverlay.heightAnchor.constraint(equalTo: view.heightAnchor)
             ])
     }
+    
+    func speak(_ string: String) {
+            let utterance = AVSpeechUtterance(string: string)
+        utterance.voice = AVSpeechSynthesisVoice(language: "en-US")
+            speechSynthesizer.speak(utterance)
+        }
+    
+    
 }

@@ -2,16 +2,18 @@ import RealityKit
 import ARKit
 import AVFoundation
 
-class ViewController: UIViewController, ARSessionDelegate {
+class ViewController: UIViewController, ARSessionDelegate, SCNSceneRendererDelegate {
     
     @IBOutlet var arView: ARView!
-    //@IBOutlet weak var hideMeshButton: UIButton!
-    //@IBOutlet weak var resetButton: UIButton!
-    //@IBOutlet weak var planeDetectionButton: UIButton!
+    
     var distanceUpdateTimer: Timer?
+    var speechTimer: Timer?
+    
     var hapticGenerator: UIImpactFeedbackGenerator?
-    private let speechSynthesizer = AVSpeechSynthesizer()
+    let speechSynthesizer = AVSpeechSynthesizer()
+    
     let coachingOverlay = ARCoachingOverlayView()
+    
     
     // Cache for 3D text geometries representing the classification values.
     var modelsForClassification: [ARMeshClassification: ModelEntity] = [:]
@@ -19,8 +21,9 @@ class ViewController: UIViewController, ARSessionDelegate {
     /// - Tag: ViewDidLoad
     override func viewDidLoad() {
         super.viewDidLoad()
+        //arView.delegate = self
         
-        distanceUpdateTimer = Timer.scheduledTimer(timeInterval: 0.1, target: self, selector: #selector(updateDistance), userInfo: nil, repeats: true)
+        distanceUpdateTimer = Timer.scheduledTimer(timeInterval: 0.05, target: self, selector: #selector(updateDistance), userInfo: nil, repeats: true)
         // Initialize haptic generator
         hapticGenerator = UIImpactFeedbackGenerator(style: .heavy)
                 hapticGenerator?.prepare()
@@ -58,19 +61,42 @@ class ViewController: UIViewController, ARSessionDelegate {
     }
     
     @objc func updateDistance() {
+//        let screenCenter = CGPoint(x: arView.bounds.midX, y: arView.bounds.midY)
+//        if let result = arView.raycast(from: screenCenter, allowing:.estimatedPlane, alignment:.any).first {
+//            let distance = distance(result.worldTransform.position, arView.cameraTransform.translation)
+//            print("Distance: \(distance)")
+        
         let screenCenter = CGPoint(x: arView.bounds.midX, y: arView.bounds.midY)
-        if let result = arView.raycast(from: screenCenter, allowing:.estimatedPlane, alignment:.any).first {
-            let distance = distance(result.worldTransform.position, arView.cameraTransform.translation)
-            print("Distance: \(distance)")
+            if let result = arView.raycast(from: screenCenter, allowing:.estimatedPlane, alignment:.any).first {
+                let cameraTransform = arView.session.currentFrame?.camera.transform
+                let cameraPosition = SCNVector3(cameraTransform!.columns.3.x, cameraTransform!.columns.3.y, cameraTransform!.columns.3.z)
+                let hitTransform = result.worldTransform
+                let hitPosition = SCNVector3(hitTransform.columns.3.x, hitTransform.columns.3.y, hitTransform.columns.3.z)
+                let distance = calculateDistance(cameraPosition, hitPosition)
+                print("Distance: \(distance)")
             provideHapticFeedback(Float(distance))
-
-            // Call nearbyFaceWithClassification
-            nearbyFaceWithClassification(to: result.worldTransform.position) { centerOfFace, classification in
-                if let classification = classification {
-                    print("Classification: \(classification.description)")
+            
+            
+            
+            
+            
+                
+                // Call nearbyFaceWithClassification
+                nearbyFaceWithClassification(to: result.worldTransform.position) { centerOfFace, classification in
+                    if let classification = classification {
+                        print("Classification: \(classification.description)")
+                        let speechUtterance = AVSpeechUtterance(string: classification.description)
+                                speechUtterance.voice = AVSpeechSynthesisVoice(language: "en-US")
+                                self.speechSynthesizer.speak(speechUtterance)
+                    }
                 }
             }
-        }
+    }
+    func calculateDistance(_ point1: SCNVector3, _ point2: SCNVector3) -> Float {
+        let dx = point2.x - point1.x
+        let dy = point2.y - point1.y
+        let dz = point2.z - point1.z
+        return sqrt(dx*dx + dy*dy + dz*dz)
     }
     
     override func viewDidAppear(_ animated: Bool) {
@@ -95,37 +121,7 @@ class ViewController: UIViewController, ARSessionDelegate {
         // ...
    }
     
-//    @IBAction func resetButtonPressed(_ sender: Any) {
-//        if let configuration = arView.session.configuration {
-//            arView.session.run(configuration, options: .resetSceneReconstruction)
-//        }
-//    }
-    
-//    @IBAction func toggleMeshButtonPressed(_ button: UIButton) {
-//        let isShowingMesh = arView.debugOptions.contains(.showSceneUnderstanding)
-//        if isShowingMesh {
-//            arView.debugOptions.remove(.showSceneUnderstanding)
-//            button.setTitle("Show Mesh", for: [])
-//        } else {
-//            arView.debugOptions.insert(.showSceneUnderstanding)
-//            button.setTitle("Hide Mesh", for: [])
-//        }
-//    }
-    
-    /// - Tag: TogglePlaneDetection
-//    @IBAction func togglePlaneDetectionButtonPressed(_ button: UIButton) {
-//        guard let configuration = arView.session.configuration as? ARWorldTrackingConfiguration else {
-//            return
-//        }
-//        if configuration.planeDetection == [] {
-//            configuration.planeDetection = [.horizontal, .vertical]
-//            button.setTitle("Stop Plane Detection", for: [])
-//        } else {
-//            configuration.planeDetection = []
-//            button.setTitle("Start Plane Detection", for: [])
-//        }
-//        arView.session.run(configuration)
-//    }
+
     
     func nearbyFaceWithClassification(to location: SIMD3<Float>, completionBlock: @escaping (SIMD3<Float>?, ARMeshClassification?) -> Void) {
         guard let frame = arView.session.currentFrame else {
@@ -218,8 +214,9 @@ class ViewController: UIViewController, ARSessionDelegate {
     }
     
     func provideHapticFeedback(_ distance: Float) {
-            // Reverse the intensity: stronger haptic for shorter distances
-            let intensity = CGFloat(max(0, min(1, 1 - distance / 2))) // Example: Inverted distance mapped to intensity between 0 and 1
-            hapticGenerator?.impactOccurred(intensity: intensity)
-        }
+        // Reverse the intensity: stronger haptic for shorter distances
+        let intensity = CGFloat(max(0, min(1, 1 - distance / 1.5))) // Example: Inverted distance mapped to intensity between 0 and 1
+        hapticGenerator?.impactOccurred(intensity: intensity)
+        
+    }
 }
